@@ -7,6 +7,7 @@ from treedex.llm_backends import (
     GeminiLLM,
     OpenAILLM,
     ClaudeLLM,
+    BedrockLLM,
     MistralLLM,
     CohereLLM,
     OpenAICompatibleLLM,
@@ -45,6 +46,7 @@ __all__ = [
     "ClaudeLLM",
     "MistralLLM",
     "CohereLLM",
+    "BedrockLLM",
     # OpenAI-compatible (stdlib, zero deps)
     "OpenAICompatibleLLM",
     "GroqLLM",
