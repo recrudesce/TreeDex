@@ -16,6 +16,7 @@ export {
   ClaudeLLM,
   MistralLLM,
   CohereLLM,
+  BedrockLLM,
   OpenAICompatibleLLM,
   GroqLLM,
   TogetherLLM,
