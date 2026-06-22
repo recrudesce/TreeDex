@@ -8,6 +8,7 @@
  *     ├── ClaudeLLM               — Anthropic Claude (lazy SDK)
  *     ├── MistralLLM              — Mistral AI (lazy SDK)
  *     ├── CohereLLM               — Cohere (lazy SDK)
+ *     ├── BedrockLLM              — AWS Bedrock (lazy SDK)
  *     ├── OpenAICompatibleLLM     — Any OpenAI-compatible endpoint (fetch)
  *     │   ├── GroqLLM             — Groq (pre-configured URL)
  *     │   ├── TogetherLLM         — Together AI (pre-configured URL)
@@ -261,6 +262,112 @@ export class ClaudeLLM extends BaseLLM {
 
   toString(): string {
     return `ClaudeLLM(model=${JSON.stringify(this.modelName)})`;
+  }
+}
+
+/** AWS Bedrock via @aws-sdk/client-bedrock-runtime SDK. */
+export class BedrockLLM extends BaseLLM {
+  readonly modelName: string;
+  readonly region?: string;
+  readonly accessKeyId?: string;
+  readonly secretAccessKey?: string;
+  readonly sessionToken?: string;
+  private _client: unknown = null;
+  private _ConverseCommand: unknown = null;
+
+  constructor(
+    options: {
+      model?: string;
+      region?: string;
+      accessKeyId?: string;
+      secretAccessKey?: string;
+      sessionToken?: string;
+    } = {},
+  ) {
+    super();
+    this.modelName = options.model ?? "anthropic.claude-3-5-sonnet-20240620-v1:0";
+    this.region = options.region;
+    this.accessKeyId = options.accessKeyId;
+    this.secretAccessKey = options.secretAccessKey;
+    this.sessionToken = options.sessionToken;
+  }
+
+  private async getClient(): Promise<{ client: any; ConverseCommand: any }> {
+    if (this._client === null) {
+      // @ts-expect-error -- optional peer dependency
+      const { BedrockRuntimeClient, ConverseCommand } = await import("@aws-sdk/client-bedrock-runtime");
+      
+      const config: Record<string, any> = {};
+      if (this.region) {
+        config.region = this.region;
+      }
+      if (this.accessKeyId && this.secretAccessKey) {
+        config.credentials = {
+          accessKeyId: this.accessKeyId,
+          secretAccessKey: this.secretAccessKey,
+          sessionToken: this.sessionToken,
+        };
+      }
+
+      this._client = new BedrockRuntimeClient(config);
+      this._ConverseCommand = ConverseCommand;
+    }
+    return { client: this._client, ConverseCommand: this._ConverseCommand };
+  }
+
+  async generate(prompt: string): Promise<string> {
+    const { client, ConverseCommand } = await this.getClient();
+    
+    const command = new ConverseCommand({
+      modelId: this.modelName,
+      messages: [{ role: "user", content: [{ text: prompt }] }],
+    });
+
+    const response = await client.send(command);
+    return response.output?.message?.content?.[0]?.text ?? "";
+  }
+
+  get supportsVision(): boolean {
+    return true;
+  }
+
+  async generateWithImage(
+    prompt: string,
+    imageBase64: string,
+    mimeType: string,
+  ): Promise<string> {
+    const { client, ConverseCommand } = await this.getClient();
+
+    // Bedrock's converse API expects format identifiers like 'jpeg', 'png', 'webp'
+    const imgFormat = mimeType.includes("/") ? mimeType.split("/")[1] : mimeType;
+
+    // Isomorphic base64 to byte array decoding
+    const imageBytes = typeof Buffer !== "undefined"
+      ? Buffer.from(imageBase64, "base64")
+      : Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
+
+    const command = new ConverseCommand({
+      modelId: this.modelName,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            image: {
+              format: imgFormat,
+              source: { bytes: imageBytes },
+            },
+          },
+          { text: prompt },
+        ],
+      }],
+    });
+
+    const response = await client.send(command);
+    return response.output?.message?.content?.[0]?.text ?? "";
+  }
+
+  toString(): string {
+    return `BedrockLLM(model=${JSON.stringify(this.modelName)})`;
   }
 }
 
