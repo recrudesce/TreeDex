@@ -345,6 +345,18 @@ class TreeDex:
 
         return cls(tree, pages, llm)
 
+    @classmethod
+    def load_json(cls, data: dict, llm=None):
+        """Load a TreeDex index from a pre-parsed JSON dictionary."""
+        tree = data["tree"]
+        pages = data["pages"]
+
+        # Re-embed text from pages
+        assign_page_ranges(tree, total_pages=len(pages))
+        embed_text_in_tree(tree, pages)
+
+        return cls(tree, pages, llm)
+
     def show_tree(self):
         """Pretty-print the tree structure."""
         print_tree(self.tree)
