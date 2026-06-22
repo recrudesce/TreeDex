@@ -18,6 +18,7 @@ BaseLLM (abstract)
 │   ├── ClaudeLLM         anthropic / @anthropic-ai/sdk
 │   ├── MistralLLM        mistralai / @mistralai/mistralai
 │   └── CohereLLM         cohere / cohere-ai
+│   └── BedrockLLM        boto3 / @aws-sdk/client-bedrock-runtime
 │
 ├── OpenAI-compatible (zero deps — fetch/urllib only)
 │   ├── GroqLLM           api.groq.com
@@ -47,6 +48,7 @@ BaseLLM (abstract)
 | `ClaudeLLM` | `ClaudeLLM(api_key, model="claude-sonnet-4-20250514")` | API key |
 | `MistralLLM` | `MistralLLM(api_key, model="mistral-large-latest")` | API key |
 | `CohereLLM` | `CohereLLM(api_key, model="command-r-plus")` | API key |
+| `BedrockLLM` | `BedrockLLM(model="anthropic.claudehaiku-4-5-20251001-v1:0")` | AWS Credentials |
 | `GroqLLM` | `GroqLLM(api_key, model="llama-3.3-70b-versatile")` | API key |
 | `TogetherLLM` | `TogetherLLM(api_key, model="...")` | API key |
 | `FireworksLLM` | `FireworksLLM(api_key, model="...")` | API key |
@@ -66,20 +68,32 @@ BaseLLM (abstract)
 
 ```python
 # Python
-from treedex import GeminiLLM, OpenAILLM, ClaudeLLM
+from treedex import GeminiLLM, OpenAILLM, ClaudeLLM, BedrockLLM
 
 llm = GeminiLLM(api_key="...")
 llm = OpenAILLM(api_key="...")
 llm = ClaudeLLM(api_key="...")
+
+# Bedrock
+llm = BedrockLLM(model="anthropic.claude-haiku-4-5-20251001-v1:0") 
+
+# Or pass credentials explicitly
+llm = BedrockLLM(
+    model="us.amazon.nova-pro-v1:0", 
+    region_name="us-east-1", 
+    aws_access_key_id="...", 
+    aws_secret_access_key="..."
+)
 ```
 
 ```typescript
 // TypeScript
-import { GeminiLLM, OpenAILLM, ClaudeLLM } from "treedex";
+import { GeminiLLM, OpenAILLM, ClaudeLLM, BedrockLLM } from "treedex";
 
 const llm = new GeminiLLM("api-key");
 const llm = new OpenAILLM("api-key");
 const llm = new ClaudeLLM("api-key");
+const llm = new BedrockLLM({ model: "anthropic.claude-haiku-4-5-20251001-v1:0", region: "us-east-1" });
 ```
 
 ### Zero-Dependency Providers
@@ -133,6 +147,7 @@ Three backends can describe images extracted from PDFs:
 | GeminiLLM | `generate_content()` inline_data | Base64 |
 | OpenAILLM | Chat completion image_url | Base64 data URI |
 | ClaudeLLM | Messages API image source | Base64 + media_type |
+| BedrockLLM | `converse()` API image source | Base64 + format |
 
 Enable with `extract_images=True`:
 
@@ -152,6 +167,7 @@ Most backends also read API keys from environment variables:
 | GeminiLLM | `GOOGLE_API_KEY` |
 | OpenAILLM | `OPENAI_API_KEY` |
 | ClaudeLLM | `ANTHROPIC_API_KEY` |
+| BedrockLLM | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
 | GroqLLM | `GROQ_API_KEY` |
 | TogetherLLM | `TOGETHER_API_KEY` |
 | HuggingFaceLLM | `HF_TOKEN` |
