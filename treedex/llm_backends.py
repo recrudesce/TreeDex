@@ -561,6 +561,83 @@ class HuggingFaceLLM(BaseLLM):
     def __repr__(self):
         return f"HuggingFaceLLM(model={self.model!r})"
 
+# ---------------------------------------------------------------------------
+# Bedrock native
+# ---------------------------------------------------------------------------
+
+class BedrockLLM(BaseLLM):
+    """AWS Bedrock via boto3 SDK.
+
+    pip install boto3
+    """
+
+    def __init__(
+        self,
+        model: str = "anthropic.claude-haiku-4-5-20251001-v1:0",
+        region_name: str | None = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_session_token: str | None = None,
+    ):
+        self.model_name = model
+        self.region_name = region_name
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            import boto3
+
+            self._client = boto3.client(
+                service_name="bedrock-runtime",
+                region_name=self.region_name,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+            )
+        return self._client
+
+    def generate(self, prompt: str) -> str:
+        client = self._get_client()
+        response = client.converse(
+            modelId=self.model_name,
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+        )
+        return response["output"]["message"]["content"][0]["text"]
+
+    @property
+    def supports_vision(self) -> bool:
+        return True
+
+    def generate_with_image(self, prompt: str, image_base64: str, mime_type: str) -> str:
+        import base64
+        client = self._get_client()
+        image_bytes = base64.b64decode(image_base64)
+        
+        # Bedrock's converse API expects format identifiers like 'jpeg', 'png', 'webp'
+        img_format = mime_type.split("/")[-1] if "/" in mime_type else mime_type
+
+        response = client.converse(
+            modelId=self.model_name,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "image": {
+                            "format": img_format,
+                            "source": {"bytes": image_bytes},
+                        }
+                    },
+                    {"text": prompt},
+                ],
+            }],
+        )
+        return response["output"]["message"]["content"][0]["text"]
+
+    def __repr__(self):
+        return f"BedrockLLM(model={self.model_name!r})"
 
 # ---------------------------------------------------------------------------
 # Ollama native
